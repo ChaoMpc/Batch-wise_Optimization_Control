@@ -31,7 +31,9 @@ nominal batch-wise optimization, three online closed-loop controllers
     Every stage script resolves its own path via mfilename('fullpath')
     and adds it with addpath(project_dir); rehash().
 
-  * Artefacts are stored in:
+  * Artefacts are provided as compressed archives. Extract `results.zip`,
+    `unreachable_results.zip` and 'diagnostics.zip' in the repository root; after extraction, the
+    original directory structure is restored as follows:
 
         results/stage01_setup.mat
         results/stage02_identification.mat
