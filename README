@@ -1,1 +1,402 @@
 
+================================================================================
+README — Latent-Variable Batch-wise Optimization Control with Tube Feedback
+          Example 2: Batch Crystallization  (GNU Octave)
+================================================================================
+
+This file accompanies the paper
+  "Latent-Variable Batch-wise Optimization Control with Tube Feedback
+   for Point-to-Point Tracking"
+and contains the full GNU Octave simulation code for Example 2 (batch
+crystallization): identification, uncertainty estimation, tube synthesis,
+nominal batch-wise optimization, three online closed-loop controllers
+(Proposed / Xue [30] / Oh [13]) and all reporting utilities.
+
+
+--------------------------------------------------------------------------------
+1. ENVIRONMENT
+--------------------------------------------------------------------------------
+
+  * GNU Octave (tested on 11.x). MATLAB is NOT supported.
+  * Required Octave packages:
+        control   (dlqr, dlyap, observer utilities)
+        optim     (qp)
+        glpk      (usually shipped with Octave)
+  * Load once per session:
+
+        pkg load control
+        pkg load optim
+
+  * Working directory must be the folder that contains all *.m files.
+    Every stage script resolves its own path via mfilename('fullpath')
+    and adds it with addpath(project_dir); rehash().
+
+  * Artefacts are stored in:
+
+        results/stage01_setup.mat
+        results/stage02_identification.mat
+        results/stage03_tube.mat
+        results/stage04_nominal.mat
+        results/stage05_simulation.mat
+        results/stage05_tube_checkpoint.mat
+        results/reporting/                    (CSV tables, figures/)
+        results/diagnostics/out/              (reviewer diagnostics)
+        unreachable_results/                  (unreachable-reference case)
+
+
+--------------------------------------------------------------------------------
+2. *** IMPORTANT WARNING — BEFORE YOU RUN ANYTHING ***
+--------------------------------------------------------------------------------
+
+  !!  DO NOT re-run run_stage01_setup.m ... run_stage05_simulation.m unless
+  !!  you really need to. The full pipeline (Stage 2 with 300 training
+  !!  batches, Stage 5 with the Oh [13] QP solver) takes roughly 1–2 hours.
+  !!
+  !!  If results/*.mat have been provided with the repository, START FROM
+  !!  SECTION 4 (LOAD-BASED REPRODUCTION). Do NOT run Stages 1–5.
+
+  Stage 5 alone is dominated by the Oh method: ~250 s per batch, 20 batches.
+
+
+--------------------------------------------------------------------------------
+3. FULL REPRODUCTION FROM SCRATCH (SLOW, ~1–2 h)
+--------------------------------------------------------------------------------
+
+Run in this exact order from a fresh Octave prompt:
+
+  STEP 1  ->  run_stage01_setup
+              Builds Params, Reference, physical baseline.
+              Saves results/stage01_setup.mat.
+
+  STEP 2  ->  run_stage02_identification
+              Generates 300 training + 5 validation + 5 calibration batches,
+              fits preprocessing + static PLS + MIMO-ARX, runs CV,
+              validates model.
+              Saves results/stage02_identification.mat.
+
+  STEP 3  ->  run_stage03_tube
+              Builds innovation / reconstruction uncertainty sets,
+              initial-state error set, LQR tube gain, RPI ellipsoid,
+              physical constraint tightening, LP feasibility check.
+              Saves results/stage03_tube.mat.
+
+  STEP 4  ->  run_stage04_nominal
+              Builds the common nominal problem, feasible initial point,
+              optimal reachable point, finite nominal iterations.
+              Saves results/stage04_nominal.mat.
+
+  STEP 5  ->  run_stage05_simulation
+              Runs Proposed (Tube), Xue [30] and Oh [13] closed-loop
+              simulations on the shared scenario.
+              Saves results/stage05_simulation.mat.
+
+  STEP 6  ->  run_stage06_reporting
+              Produces comparison CSV tables and Figures 10–17.
+              Saves results/reporting/.
+
+Command block:
+
+    pkg load control; pkg load optim;
+    addpath(pwd); rehash();
+
+    run_stage01_setup
+    run_stage02_identification
+    run_stage03_tube
+    run_stage04_nominal
+    run_stage05_simulation
+    run_stage06_reporting
+
+
+--------------------------------------------------------------------------------
+4. LOAD-BASED REPRODUCTION (RECOMMENDED, FAST)
+--------------------------------------------------------------------------------
+
+If results/*.mat already exist, SKIP Stages 1–5. From a fresh Octave prompt
+with the working directory at the repo root, run:
+
+    pkg load control; pkg load optim;
+    addpath(pwd); rehash();
+
+    ----------------------------------------------------------------
+    (4.1) All paper figures 10–17 and the comparison tables 16
+    ----------------------------------------------------------------
+        run_stage06_reporting
+        -> reads results/stage05_simulation.mat
+        -> writes results/reporting/comparison_table.csv
+                 results/reporting/batch_metrics.csv
+                 results/reporting/figures/fig1_tracking_comparison.*
+                 results/reporting/figures/fig2_proposed_outputs.*
+                 results/reporting/figures/fig3_proposed_inputs.*
+                 results/reporting/figures/fig4_xue_outputs.*
+                 results/reporting/figures/fig5_xue_inputs.*
+                 results/reporting/figures/fig6_oh_outputs.*
+                 results/reporting/figures/fig7_oh_inputs.*
+                 results/reporting/figures/fig8_free_run_validation.*
+
+    ----------------------------------------------------------------
+    (4.2) Reviewer diagnostics: Tables 5, 9, 10, 11, 12 and Figure 18
+    ----------------------------------------------------------------
+        run_diagnostics_example2
+        -> reads results/stage02_identification.mat
+                 results/stage03_tube.mat
+                 results/stage05_simulation.mat
+        -> writes results/diagnostics/out/full_diagnostics_report.txt
+                 results/diagnostics/out/figures/fig16_comparison.*
+                 results/diagnostics/out/tables/table_params.txt
+                 results/diagnostics/out/tables/table_reachable_points.txt
+                 results/diagnostics/out/tables/active_constraints.txt
+
+    ----------------------------------------------------------------
+    (4.3) Unreachable-reference case: Figures 19, 20 and Table 17
+    ----------------------------------------------------------------
+        run_unreachable_example2
+        -> overrides Params.y_ref_phys(2) = 0.013 and rebuilds the nominal
+           problem, runs only the Proposed controller.
+        -> writes unreachable_results/fig_unreachable_tracking.*
+                 unreachable_results/fig_unreachable_trajectory_zoom.*
+                 unreachable_results/table_unreachable_active.csv
+                 unreachable_results/unreachable_example2_results.mat
+        -> does NOT overwrite stage03_tube.mat or stage05_simulation.mat.
+
+    ----------------------------------------------------------------
+    (4.4) Oh [13] Q_trk / R_upd sensitivity: Table 14
+    ----------------------------------------------------------------
+        run_oh_sensitivity_sweep
+        -> re-runs Oh [13] on 5 batches over a 3x3 (Q,R) grid.
+           Runtime is roughly 9 x 5 x (Oh per-batch time) = 15–30 min.
+        -> writes oh_sensitivity_results.txt
+                 oh_sensitivity_workspace.mat
+
+        sweep_main
+        -> reads oh_sensitivity_workspace.mat and prints the
+           max-adjacent-batch metrics.
+
+    ----------------------------------------------------------------
+    (4.5) Optional — Table 13 (A_lv x n_arx sensitivity)
+    ----------------------------------------------------------------
+        run_sensitivity_A
+        -> *** SLOW: re-generates 300 training batches and retrains
+              the model on a 5x3 grid. ***
+        -> writes sensitivity_A_data.csv
+
+        run_nominal_openloop_check
+        -> console-only diagnostic on the nominal trajectories.
+
+  RECOMMENDED MINIMUM to reproduce the paper's figures:
+        run_stage06_reporting       (Figures 10–17, Table 16)
+        run_diagnostics_example2    (Figure 18 with Theorem 3 bound)
+        run_unreachable_example2    (Figures 19–20, Table 17)
+
+
+--------------------------------------------------------------------------------
+5. QUICK PIPELINE (ONLY when init_params.m has been edited)
+--------------------------------------------------------------------------------
+
+When you have modified only the controller parameters in init_params.m,
+use the fast re-entry pipeline (it re-uses the existing Stage-2 model):
+
+    run_fast_pipeline
+
+This runs Stage 1 (to refresh Params/Reference), re-injects the new Params
+into the saved Stage-2 model, then runs Stages 3, 4, 5, 6.
+
+  NOTE: run_fast_pipeline will ERROR OUT if Params.A_lv or Params.n_arx
+        has been changed — in that case Stage 2 must be re-run from scratch.
+
+
+--------------------------------------------------------------------------------
+6. PAPER FIGURES  <->  GENERATING SCRIPTS
+--------------------------------------------------------------------------------
+
+  ---------------------------------------------------------------------------
+  Fig.  Description                                Script / Output
+  ---------------------------------------------------------------------------
+   2–9  Wood-Berry example (separate branch)       (not in this branch)
+
+   10   Free-run validation of the identified model
+          plot_results.m (Fig.8), via run_stage06_reporting
+          -> results/reporting/figures/fig8_free_run_validation.*
+
+   11   Tracking: Proposed vs Xue vs Oh
+          plot_results.m (Fig.1), via run_stage06_reporting
+          -> results/reporting/figures/fig1_tracking_comparison.*
+
+   12   Proposed — all outputs (B15,16 red / B17 blue)
+          plot_results.m (Fig.2), via run_stage06_reporting
+          -> results/reporting/figures/fig2_proposed_outputs.*
+
+   13   Proposed — all inputs
+          plot_results.m (Fig.3), via run_stage06_reporting
+          -> results/reporting/figures/fig3_proposed_inputs.*
+
+   14   Xue [30] — all outputs
+          plot_results.m (Fig.4), via run_stage06_reporting
+          -> results/reporting/figures/fig4_xue_outputs.*
+
+   15   Xue [30] — all inputs
+          plot_results.m (Fig.5), via run_stage06_reporting
+          -> results/reporting/figures/fig5_xue_inputs.*
+
+   16   Oh [13] — all outputs
+          plot_results.m (Fig.6), via run_stage06_reporting
+          -> results/reporting/figures/fig6_oh_outputs.*
+
+   17   Oh [13] — all inputs
+          plot_results.m (Fig.7), via run_stage06_reporting
+          -> results/reporting/figures/fig7_oh_inputs.*
+
+   18   Q_trk-weighted per-batch errors + Theorem 3 bound
+          plot_figure16_redraw.m (called by run_diagnostics_example2.m)
+          -> results/diagnostics/out/figures/fig16_comparison.*
+
+   19   Unreachable case: per-batch weighted errors at
+        k1 = 90 min, k2 = 120 min + Theorem 3 bound
+          run_unreachable_example2.m
+          -> unreachable_results/fig_unreachable_tracking.{png,eps}
+
+   20   Unreachable case: C_ATR trajectories + zoom [115,120] min
+          run_unreachable_example2.m
+          -> unreachable_results/fig_unreachable_trajectory_zoom.{png,eps}
+  ---------------------------------------------------------------------------
+
+  NOTE: plot_figure16_redraw.m and fig16_comparison.* are HISTORICAL
+        file names. They plot what is Figure 18 in the current
+        manuscript (weighted errors WITH the Theorem-3 bound).
+        plot_results.m "Fig. 9" is a simplified version of Figure 18
+        WITHOUT the bound. Use plot_figure16_redraw.m for the paper.
+
+
+--------------------------------------------------------------------------------
+7. PAPER TABLES  <->  GENERATING SCRIPTS
+--------------------------------------------------------------------------------
+
+  ---------------------------------------------------------------------------
+  Tab.  Description                              Script / Output
+  ---------------------------------------------------------------------------
+   1    Main notation                            (theoretical, no code)
+
+   2    Cross-validation results of DyPLS-MIMO-ARX
+          run_stage02_identification.m (stdout + stage02_log.txt)
+
+   3    Free-run on independent test set (batch-wise)
+          run_stage02_identification.m (stdout + stage02_log.txt)
+
+   4    SISO-ARX vs MIMO-ARX comparison          (manual, not in branch)
+
+   5    alpha / beta sensitivity of tube margins
+          compute_invariant_ellipsoid.m (Inv.Sens)
+          printed by export_tables.m via run_diagnostics_example2.m
+          -> results/diagnostics/out/tables/Metrics_Tables.txt (Tab.3a,3b)
+
+   6    Per-batch tracking errors at reference points
+          derived from Data_prop.Err_true_act / Err_opt_nom
+          stored in results/stage05_simulation.mat
+
+   7    Monte-Carlo robustness table             (not in this branch)
+
+   8    Physical / kinetic parameters            init_params.m
+
+   9    Simulation & identification parameters
+          run_diagnostics_example2.m
+          -> results/diagnostics/out/tables/table_params.txt
+
+   10   PLS evidence per component (EV_X, EV_Y, sigma_min(Q), rank)
+          report_pls_evidence_example2.m via run_diagnostics_example2.m
+          (console Tables A/B/C)
+
+   11   QP Hessian condition number (raw vs latent)
+          compute_qp_conditioning.m via run_diagnostics_example2.m
+          (console)
+
+   12   Reference vs optimal reachable points
+          compute_optimal_reachable.m (stdout)
+          -> results/diagnostics/out/tables/table_reachable_points.txt
+
+   13   Effect of A_lv, n_arx on VAF / NRMSE / tightening / reachability
+          run_sensitivity_A.m   ->  sensitivity_A_data.csv
+          *** SLOW: retrains the model on a 5x3 grid. ***
+
+   14   Oh [13] Q_trk / R_upd 3x3 sensitivity
+          run_oh_sensitivity_sweep.m
+          -> oh_sensitivity_results.txt
+             oh_sensitivity_workspace.mat
+          then sweep_main.m for max-adjacent-batch metrics.
+
+   15   Parameter configuration of the three methods
+          (not in code — see manuscript Table 15)
+
+   16   Performance & computational cost of the three methods
+          report_simulation_comparison.m (console)
+          export_comparison_table.m via run_stage06_reporting.m
+          -> results/reporting/comparison_table.csv
+             results/reporting/batch_metrics.csv
+
+   17   Active constraints in the unreachable scenario
+          run_unreachable_example2.m
+          -> unreachable_results/table_unreachable_active.csv
+  ---------------------------------------------------------------------------
+
+
+--------------------------------------------------------------------------------
+8. NOTES FOR REVIEWERS / READERS
+--------------------------------------------------------------------------------
+
+  * Reproducibility. Random seeds are centralised in init_params.m:
+        rng_seed       — training data
+        rng_seed_val   — validation data
+        rng_seed_unc   — calibration data
+        rng_seed_online— shared closed-loop scenario (identical for all
+                         three controllers).
+
+  * Comparable weights. All three controllers share
+        Q_trk = 100 ,  R_upd = 1e-4
+    (see init_params.m and Section 6-C of the paper).
+
+  * Unreachable scenario. run_unreachable_example2.m OVERRIDES
+    Params.y_ref_phys(2) = 0.013 and rebuilds the nominal problem.
+    It does NOT overwrite stage03_tube.mat or stage05_simulation.mat;
+    its outputs go to unreachable_results/.
+
+  * Numerical safeguards. solve_qp_checked.m guards against non-convex
+    Hessians, scaled infeasibility and non-optimal QP exits, and
+    gracefully accepts status = 3 (max iterations) when the returned
+    point is feasible.
+
+  * Missing artefacts. Each stage verifies the presence of the previous
+    .mat file; running run_stage06_reporting from an empty results/
+    folder fails with a clear message.
+
+  * Wood-Berry example (Figs 2–9, Table 4). This lives in the separate
+    branch Wood_Berry_Column of the upstream repository
+        https://github.com/ChaoMpc/Batch-wise_Optimization_Control.git
+    The current working directory corresponds to the
+        Batch-Crystallization
+    branch.
+
+
+--------------------------------------------------------------------------------
+9. QUICK CHECKLIST
+--------------------------------------------------------------------------------
+
+  [ ] Octave >= 8 installed;  control, optim, glpk loadable.
+  [ ] Working directory = folder that contains all *.m files.
+  [ ] results/*.mat present           -> use SECTION 4 (fast).
+      -- OR --
+      you accept the 1–2 h runtime    -> use SECTION 3 (full pipeline).
+
+  Reproduce the paper figures:
+  [ ] run_stage06_reporting        -> Figures 10–17, Table 16
+  [ ] run_diagnostics_example2     -> Figure 18 (with Theorem 3 bound),
+                                      Tables 5, 9, 10, 11, 12
+  [ ] run_unreachable_example2     -> Figures 19, 20, Table 17
+  [ ] run_oh_sensitivity_sweep     -> Table 14
+
+  Optional / slow:
+  [ ] run_sensitivity_A            -> Table 13 (retrains 300 batches)
+  [ ] run_nominal_openloop_check   -> console diagnostic
+  [ ] run_fast_pipeline            -> only after editing init_params.m
+                                      (A_lv, n_arx MUST be unchanged)
+
+================================================================================
+End of README
+================================================================================
