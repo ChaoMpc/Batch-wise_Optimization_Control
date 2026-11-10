@@ -1,0 +1,9 @@
+Batch,y*_s(90),y*_s(120),Tj_sp,Fc,Fanti,Fsol,Nstir,C_ATR
+Intervals,-,-,"[260.7317, 319.2683]","[10.6615, 99.3385]","[2.6110, 7.3890]","[2.8532, 7.1468]","[55.1883, 494.8117]","[0.014319, 0.035681]"
+1,0.02200000,0.01431905,Inactive,Inactive,Inactive,Inactive,Inactive,Inactive
+3,0.02200000,0.01431905,Inactive,Inactive,Inactive,Inactive,Inactive,Inactive
+5,0.02200000,0.01431905,Inactive,Inactive,Inactive,Inactive,Inactive,Inactive
+10,0.02200000,0.01431905,Inactive,Inactive,Inactive,Inactive,Inactive,Active
+18,0.02200000,0.01431905,Inactive,Inactive,Inactive,Inactive,Inactive,Active
+19,0.02200000,0.01431905,Inactive,Inactive,Inactive,Inactive,Inactive,Active
+20,0.02200000,0.01431905,Inactive,Inactive,Inactive,Inactive,Inactive,Active
