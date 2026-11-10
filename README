@@ -1,1 +1,24 @@
 
+# Batch-wise Optimization Control with Tube Feedback
+
+Code and data-generation scripts for the paper:
+
+**Data-Driven Latent-Variable Batch-wise Optimization Control with Tube Feedback for Constrained Processes**
+
+## Example 1 and Example 2 are on different branches
+
+This `main` branch only contains this README. The two examples are stored in two separate branches:
+
+- **Example 1 (Wood–Berry binary distillation column)** → branch `Wood_Berry-Columns`
+- **Example 2 (Batch crystallization)** → branch `Batch-Crystallization`
+
+## How to get the code for each example
+
+Clone the repository once, then switch to the branch of the example you want.
+
+**Example 1 — Wood–Berry binary distillation column**
+
+```bash
+git clone https://github.com/ChaoMpc/Batch-wise_Optimization_Control.git
+cd Batch-wise_Optimization_Control
+git checkout Wood_Berry-Columns
